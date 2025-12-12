@@ -65,7 +65,7 @@ def get_wheel_metrics(ticker_symbol):
     """
     metrics = {
         "Price": 0, "IV": "N/A", "Volume": 0, 
-        "SMA200": 0, "Trend": "Down", 
+        "SMA50": 0, "SMA200": 0, "Trend": "N/A", 
         "PriceToSales": 0, "ForwardPE": 0, "Earnings": "N/A"
     }
     
@@ -80,11 +80,23 @@ def get_wheel_metrics(ticker_symbol):
         metrics["PriceToSales"] = info.get('priceToSalesTrailing12Months', 0)
         metrics["ForwardPE"] = info.get('forwardPE', 0)
         
-        # 2. Trend (Price vs 200 SMA)
+        # 2. Trend (Stacked SMAs)
+        sma50 = info.get('fiftyDayAverage', 0)
         sma200 = info.get('twoHundredDayAverage', 0)
+        
+        metrics["SMA50"] = sma50
         metrics["SMA200"] = sma200
-        if price > 0 and sma200 > 0:
-            metrics["Trend"] = "UP" if price > sma200 else "DOWN"
+        
+        # Ensure we have valid numbers before comparing
+        if price and sma50 and sma200:
+            if price > sma50 > sma200:
+                metrics["Trend"] = "UP"
+            elif price < sma50 < sma200:
+                metrics["Trend"] = "DOWN"
+            else:
+                metrics["Trend"] = "FLAT" # Crossing or Choppy
+        else:
+             metrics["Trend"] = "N/A" # Missing data
 
         # 3. Earnings Date
         try:
@@ -147,7 +159,9 @@ def save_local_files(data_map, date_str):
             "Name": name,
             "Price": m["Price"],
             "IV %": m["IV"],
-            "Trend": m["Trend"],      # UP/DOWN vs 200SMA
+            "Trend": m["Trend"],       # UP/DOWN/FLAT based on Stacked SMAs
+            "SMA 50": round(m["SMA50"], 2) if m["SMA50"] else 0,
+            "SMA 200": round(m["SMA200"], 2) if m["SMA200"] else 0,
             
             # FIXED: Explicitly check if value is numeric (int or float) before rounding
             "P/S": round(m["PriceToSales"], 2) if isinstance(m["PriceToSales"], (int, float)) else "N/A",
@@ -161,7 +175,8 @@ def save_local_files(data_map, date_str):
     for filepath in [latest_path, archive_path]:
         try:
             with open(filepath, 'w', newline='', encoding='utf-8') as f:
-                fieldnames = ["Ticker", "Name", "Price", "IV %", "Trend", "P/S", "Fwd P/E", "Avg Vol (M)", "Earnings"]
+                # Added SMA columns to header
+                fieldnames = ["Ticker", "Name", "Price", "IV %", "Trend", "SMA 50", "SMA 200", "P/S", "Fwd P/E", "Avg Vol (M)", "Earnings"]
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(rows)
