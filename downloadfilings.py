@@ -1,28 +1,51 @@
 import os
+from pathlib import Path
 from sec_edgar_downloader import Downloader
+from bs4 import BeautifulSoup
 
-def fetch_momentum_filings():
-    # The SEC requires a User-Agent that includes your name/company and email
-    # Replace the placeholders with your actual info to avoid being throttled
-    dl = Downloader("Momentum Phinance", "your.email@domain.com")
-    
-    # Your current Momentum 7 list
-    tickers = ["MSFT", "AAPL", "NVDA", "GOOGL", "TSLA"]
-    
-    for ticker in tickers:
-        print(f"--- Processing {ticker} ---")
+# --- GLOBAL CONFIGURATION ---
+# Putting these here fixes the NameError and makes them easy to change
+EMAIL = "your.email@domain.com"
+TICKERS = ["IREN", "CRWV", "GLXY", "CRCL", "HIMS", "ZETA", "ACHR"]
+FORMS = ["10-K", "10-Q"]
+BASE_DIR = "sec-edgar-filings"
+OUTPUT_DIR = "momentum_7_txt_uploads"
+
+def download_and_convert_to_txt():
+    # Ensure the upload folder exists
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
         
-        # 1. Fetch the latest 10-K (Annual Report)
-        # limit=1 ensures you only get the most recent one
-        dl.get("10-K", ticker, limit=1, download_details=True)
-        
-        # 2. Fetch the latest 10-Q (Quarterly Report)
-        dl.get("10-Q", ticker, limit=1, download_details=True)
-        
-        # 3. Optional: Fetch recent 8-Ks (Material Events/Earnings Press Releases)
-        # This is where you often find the "hype" vs. "reality" management commentary
-        dl.get("8-K", ticker, limit=2, download_details=True)
+    dl = Downloader("Momentum Phinance", EMAIL)
+
+    for ticker in TICKERS:
+        for form in FORMS:
+            print(f"Fetching {form} for {ticker}...")
+            dl.get(form, ticker, limit=1, download_details=True)
+
+            ticker_path = Path(BASE_DIR) / ticker / form
+            
+            if ticker_path.exists():
+                for filing_folder in ticker_path.iterdir():
+                    if filing_folder.is_dir():
+                        # SEC download creates HTML by default
+                        for html_file in filing_folder.glob("*.html"):
+                            with open(html_file, 'r', encoding='utf-8') as f:
+                                soup = BeautifulSoup(f.read(), "html.parser")
+                                
+                                # Preserve spacing for financial tables
+                                raw_text = soup.get_text(separator='\n\n', strip=True)
+                                
+                                new_name = f"{ticker}_{form}.txt"
+                                dest_path = os.path.join(OUTPUT_DIR, new_name)
+                                
+                                with open(dest_path, 'w', encoding='utf-8') as out_f:
+                                    out_f.write(raw_text)
+                                print(f"  ✓ Converted to Text: {new_name}")
+            else:
+                print(f"  ! Skipping {ticker} {form} (no data found)")
 
 if __name__ == "__main__":
-    fetch_momentum_filings()
-    print("\nDownload Complete. Check your current directory for a 'sec-edgar-filings' folder.")
+    download_and_convert_to_txt()
+    # Now this print works because OUTPUT_DIR is global!
+    print(f"\nFriday Night Win! Drop the files from '{OUTPUT_DIR}' into NotebookLM.")
