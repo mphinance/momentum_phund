@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 # --- GLOBAL CONFIGURATION ---
 # Putting these here fixes the NameError and makes them easy to change
 EMAIL = "your.email@domain.com"
-TICKERS = ["IREN", "CRWV", "GLXY", "CRCL", "HIMS", "ZETA", "ACHR"]
+TICKERS = ["MSFT", "AAPL", "NVDA", "TSLA", "GOOGL", "AVGO"]
 FORMS = ["10-K", "10-Q"]
 BASE_DIR = "sec-edgar-filings"
 OUTPUT_DIR = "momentum_7_txt_uploads"
@@ -48,4 +48,4 @@ def download_and_convert_to_txt():
 if __name__ == "__main__":
     download_and_convert_to_txt()
     # Now this print works because OUTPUT_DIR is global!
-    print(f"\nFriday Night Win! Drop the files from '{OUTPUT_DIR}' into NotebookLM.")
+    print(f"\nWinning! Drop the files from '{OUTPUT_DIR}' into NotebookLM.")
